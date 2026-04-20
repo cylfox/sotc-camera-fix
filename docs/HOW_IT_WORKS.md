@@ -1,6 +1,6 @@
 # How the SotC Auto-Focus Patch Works
 
-A technical walkthrough of the `0F0C4A9C.pnach` patch and the Shadow of the Colossus (PAL, SCES-53326) camera-input pipeline it targets. Written as documentation for anyone who wants to understand, modify, or port the patch.
+A technical walkthrough of the `0F0C4A9C_disable_freeroam_autofocus.pnach` patch and the Shadow of the Colossus (PAL, SCES-53326) camera-input pipeline it targets. Written as documentation for anyone who wants to understand, modify, or port the patch.
 
 ---
 

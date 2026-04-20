@@ -12,7 +12,7 @@ It does this with a small MIPS trampoline injected into inter-function alignment
 
 ## Install
 
-1. Copy `patch/0F0C4A9C.pnach` into PCSX2's cheats folder.
+1. Copy `patch/0F0C4A9C_disable_freeroam_autofocus.pnach` into PCSX2's cheats folder.
    (In PCSX2: `Settings` → `Game List` → right-click your SotC PAL entry → `Open Cheats Directory` — or find it via `Documents/PCSX2/cheats/` on Windows.)
 
 2. Enable cheats: `Settings` → `Advanced` → **"Enable Cheats"**.
@@ -42,7 +42,7 @@ Disabling is the reverse: remove or rename the pnach file, or uncheck the "Enabl
 ```
 .
 ├── patch/                    ← the shippable pnach
-│   └── 0F0C4A9C.pnach
+│   └── 0F0C4A9C_disable_freeroam_autofocus.pnach
 ├── docs/
 │   ├── HOW_IT_WORKS.md       ← technical walkthrough (read this first)
 │   └── camera_struct/        ← early struct-mapping artifacts (historical, partly stale)
@@ -117,6 +117,6 @@ Reverse-engineered in 2026-04 via PCSX2's built-in debugger and PINE IPC.
 
 ## License
 
-The patch itself (`patch/0F0C4A9C.pnach`) is a small set of byte-level writes with no original game code — it's essentially a set of coordinates into binary memory. Share freely.
+The patch itself (`patch/0F0C4A9C_disable_freeroam_autofocus.pnach`) is a small set of byte-level writes with no original game code — it's essentially a set of coordinates into binary memory. Share freely.
 
 The tools and documentation in this repository: MIT — use, modify, port, fork as you like.
