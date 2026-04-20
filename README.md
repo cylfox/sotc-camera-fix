@@ -54,8 +54,9 @@ The file contents are identical; only the filename matters for the emulator's au
 
 ```
 .
-├── patch/                    ← the shippable pnach
-│   └── 0F0C4A9C_disable_freeroam_autofocus.pnach
+├── patch/                    ← shippable pnaches
+│   ├── 0F0C4A9C_disable_freeroam_autofocus.pnach  (stable)
+│   └── 0F0C4A9C_aim_fps_prototype.pnach            (prototype — see docs)
 ├── docs/
 │   ├── HOW_IT_WORKS.md       ← technical walkthrough (read this first)
 │   └── camera_struct/        ← early struct-mapping artifacts (historical, partly stale)

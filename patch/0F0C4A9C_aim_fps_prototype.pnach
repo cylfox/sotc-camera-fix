@@ -1,0 +1,74 @@
+gametitle=Shadow of the Colossus (PAL, SCES-53326) [CRC 0F0C4A9C]
+comment=[PROTOTYPE] FPS-style centered-reticle aim (pitch-only centering, partial)
+//
+// PROTOTYPE — NOT FINAL
+// =====================
+// This ships only the YAW portion of an FPS-style centered-reticle aim.
+// Pitch works natively via the game's aim-pitch pipeline. Controls are
+// currently SPLIT between sticks: yaw via right stick, pitch via left
+// stick. To get unified left-stick control (both yaw and pitch on one
+// stick), also run the companion live-assist script
+//   tools/aim_stick_remap.py
+// which copies left-stick X to right-stick X in pad-buffer memory while
+// in aim mode.
+//
+// A full pnach-only solution (no live script) would require either:
+//   (a) Converting aim_stick_remap.py into a MIPS trampoline at a
+//       pad-decode hook point, OR
+//   (b) Identifying where the aim pipeline gets its yaw source from
+//       memory and redirecting it to the camera yaw source.
+//
+// How the hook works
+// ==================
+// Inside the matrix-builder function at 0x01176AA0, at instruction
+// 0x01176AB4 (right before the jal 0x1B47F0 that consumes $f12 as the
+// Y-rotation angle), we hijack execution to a trampoline that, in aim
+// mode, overwrites $f12 with the live camera yaw at 0x0106DF00. This
+// causes the aim direction matrix to use the camera yaw instead of
+// Wander's body yaw. Reticle stays centered horizontally in the camera
+// view.
+//
+// Mode detection uses the flag at 0x0106C9FC (1=free-roam, 0=aim), the
+// same flag used by 0F0C4A9C_disable_freeroam_autofocus.pnach.
+//
+// Hook site
+// =========
+//   0x01176AB4  j 0x001A5248          ; was: swc1 $f20, 0xb8($sp)
+//
+// Trampoline at 0x001A5248 (8 instructions):
+//   swc1 $f20, 0xb8($sp)              ; restore clobbered
+//   lui  t0, 0x0107                   ; t0 = 0x01070000
+//   lw   at, -0x3604(t0)              ; at = mem[0x0106C9FC] (mode flag)
+//   bne  at, zero, +2                 ; free-roam -> skip
+//   nop
+//   lwc1 $f12, -0x2100(t0)            ; f12 = mem[0x0106DF00] (camera yaw)
+//   j    0x01176ABC                   ; return to the jal that uses f12
+//   nop
+//
+// Known behavior
+// ==============
+// With ONLY this pnach (no live-assist):
+//   - Aim reticle: centered horizontally
+//   - Right stick yaw: works (natural)
+//   - Right stick pitch: doesn't affect aim (game design; right stick in
+//     aim only yaws)
+//   - Left stick pitch: works (native aim-pitch path)
+//   - Left stick yaw: does not affect camera/aim (our hook overrides
+//     aim yaw with camera yaw)
+//
+// Shipped as prototype. Expected to be superseded by a full version
+// that either implements the stick remap as a trampoline or hooks the
+// aim-yaw source.
+
+// --- Hook ---
+patch=1,EE,01176AB4,word,08069492
+
+// --- Trampoline body at 0x001A5248 ---
+patch=1,EE,001A5248,word,E7B400B8
+patch=1,EE,001A524C,word,3C080107
+patch=1,EE,001A5250,word,8D01C9FC
+patch=1,EE,001A5254,word,14200002
+patch=1,EE,001A5258,word,00000000
+patch=1,EE,001A525C,word,C50CDF00
+patch=1,EE,001A5260,word,0845DAAF
+patch=1,EE,001A5264,word,00000000
