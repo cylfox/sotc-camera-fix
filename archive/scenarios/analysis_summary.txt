@@ -1,0 +1,110 @@
+Analysis of camera controller struct at 0x01C180A0, size 0x800
+Scenarios: idle, yaw, pitch, walk
+====================================================================================================
+
+### [AUTO-CENTER SUSPECTS] changed during WALK, not during IDLE
+
+  offset       type   idle    yaw  pitch   walk    walk_range       first        last
+  +0x0150        u32      .      .      .      Y     4.836e+24  0x70700000  0x70700100
+  +0x07DC        u32      .      .      .      Y     4.021e-22  0x1A521858  0x15DC114F
+  +0x0774        u32      .      .      .      Y     5.298e-37  0x03706007  0x03706007
+  +0x0784       zero      .      .      .      Y     6.275e-38  0x00000000  0x01AAD174
+  +0x07E8        ptr      .      .      .      Y     2.913e-38  0x011E94F0  0x011E94F0
+  +0x07E0        ptr      .      .      .      Y     2.703e-38  0x01710150  0x01C216C0
+  +0x077C       zero      .      .      .      Y     1.048e-38  0x00000000  0x00721F34
+  +0x07D4        ptr      .      .      .      Y     4.505e-39  0x011E73F4  0x011E73F4
+  +0x07D8  small_int      .      .      .      Y     3.673e-40  0x0000000A  0x0004000A
+  +0x01B8  small_int      .      .      .      Y     9.184e-41  0x00000001  0x00010001
+
+### [YAW USER INPUT] changed during YAW, not during IDLE/WALK
+
+  offset       type     yaw_range     yaw_first      yaw_last
+  +0x05A8      float         334.7        +88.07        +118.3
+  +0x0608      float         333.8        +74.52        +105.1
+  +0x0654      float         108.8        +29.59        +17.61
+  +0x05A0      float         82.57        +314.8        +304.7
+  +0x0600      float         80.45        +318.2        +309.4
+  +0x05A4      float         59.07         +18.6        +23.93
+  +0x0604      float          58.9        +16.21        +21.61
+  +0x0680      float             2            -2            -2
+  +0x0590      float        0.7911        +0.267       +0.1703
+  +0x05F0      float        0.7886       +0.3086        +0.213
+  +0x0578      float         0.779        -0.263       -0.1677
+  +0x05D8      float        0.7766        -0.304       -0.2097
+  +0x0570      float        0.7102       +0.9637       +0.9854
+  +0x05D0      float        0.7074       +0.9512       +0.9771
+  +0x0598      float        0.6994        +0.949       +0.9704
+  +0x05F8      float        0.6966       +0.9367       +0.9622
+  +0x0574      float        0.1375      -0.04641       -0.0296
+  +0x05D4      float        0.1371      -0.05364      -0.03701
+  +0x0594      float        0.1234       +0.1675       +0.1713
+  +0x05F4      float        0.1229       +0.1653       +0.1698
+  +0x05E4      float     1.192e-07       +0.9848       +0.9848
+  +0x0584      float      5.96e-08       +0.9848       +0.9848
+  +0x0588      float      2.98e-08       -0.1738       -0.1738
+  +0x05E8      float      2.98e-08       -0.1738       -0.1738
+  +0x0580        u32     1.118e-08    -3.725e-09            +0
+  +0x05E0        u32     7.451e-09            +0    +3.725e-09
+  +0x04F4  small_int     7.175e-43    +2.154e-42    +2.154e-42
+
+### [PITCH USER INPUT] changed during PITCH, not during IDLE/WALK
+
+  (none)
+
+### [ALWAYS CHANGING] changed in all 4 scenarios (frame counters, transform outputs)
+
+  count: 8 offsets
+  +0x02AC        ptr  idle_range= 1.525e-42  walk_range= 1.525e-42
+  +0x04D0      float  idle_range=  0.003067  walk_range=     11.69
+  +0x04D4      float  idle_range=  0.003067  walk_range=     11.69
+  +0x04D8      float  idle_range=  0.003067  walk_range=     11.69
+  +0x0500        ptr  idle_range= 7.175e-43  walk_range= 7.399e-43
+  +0x0670      float  idle_range=  0.003067  walk_range=     11.69
+  +0x0674      float  idle_range=  0.003067  walk_range=     11.69
+  +0x0678      float  idle_range=  0.003067  walk_range=     11.69
+
+### [CONSTANT] did not change in any scenario
+
+  count: 467 offsets
+  non-zero constants: 260
+  +0x000C      float  0x3F800000  (+1 as f32)
+  +0x001C      float  0x3F800000  (+1 as f32)
+  +0x002C      float  0x3F800000  (+1 as f32)
+  +0x004C      float  0x3F800000  (+1 as f32)
+  +0x005C      float  0x3F800000  (+1 as f32)
+  +0x006C      float  0x3F800000  (+1 as f32)
+  +0x007C      float  0x3F800000  (+1 as f32)
+  +0x008C      float  0x3F800000  (+1 as f32)
+  +0x0090      float  0x3F800000  (+1 as f32)
+  +0x0094      float  0x3F800000  (+1 as f32)
+  +0x0098      float  0x3F800000  (+1 as f32)
+  +0x009C      float  0x3F800000  (+1 as f32)
+  +0x00A0      float  0x3F800000  (+1 as f32)
+  +0x00A4      float  0x3F800000  (+1 as f32)
+  +0x00A8      float  0x3F800000  (+1 as f32)
+  +0x00AC      float  0x3F800000  (+1 as f32)
+  +0x00B0      float  0x3F800000  (+1 as f32)
+  +0x00B4      float  0x3F800000  (+1 as f32)
+  +0x00B8      float  0x3F800000  (+1 as f32)
+  +0x00BC      float  0x3F800000  (+1 as f32)
+  +0x00CC      float  0x3F800000  (+1 as f32)
+  +0x00DC      float  0x3F800000  (+1 as f32)
+  +0x0108        ptr  0x01C18080  (+7.10814e-38 as f32)
+  +0x0114        ptr  0x01C18080  (+7.10814e-38 as f32)
+  +0x0120        ptr  0x01C18080  (+7.10814e-38 as f32)
+  +0x0128        ptr  0x00495CB6  (+6.73725e-39 as f32)
+  +0x012C        ptr  0x01C181A0  (+7.1083e-38 as f32)
+  +0x0130        ptr  0x01479E40  (+3.66641e-38 as f32)
+  +0x0134        ptr  0x01C180B0  (+7.10817e-38 as f32)
+  +0x0138        ptr  0x01C180C0  (+7.10818e-38 as f32)
+  +0x013C        ptr  0x01C180F0  (+7.1082e-38 as f32)
+  +0x0140        ptr  0x01C186F0  (+7.10906e-38 as f32)
+  +0x0144        ptr  0x01C18340  (+7.10853e-38 as f32)
+  +0x0158        ptr  0x01C18290  (+7.10844e-38 as f32)
+  +0x015C        ptr  0x01C182D0  (+7.10847e-38 as f32)
+  +0x0178        u32  0x00010005  (+9.18425e-41 as f32)
+  +0x01B0        ptr  0x01C183C0  (+7.10861e-38 as f32)
+  +0x01B4  small_int  0x00000001  (+1.4013e-45 as f32)
+  +0x01BC        ptr  0x01C17F06  (+7.10793e-38 as f32)
+  +0x01C0        u32  0x10000024  (+2.52437e-29 as f32)
+  ... (220 more non-zero)

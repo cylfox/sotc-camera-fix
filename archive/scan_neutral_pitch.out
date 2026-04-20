@@ -1,0 +1,35 @@
+[*] code 1 (0x00100000..+2MB): 0x00100000..+0x200000  ...
+    read 2.0 MB in 13.6s (0.15 MB/s)
+    (no constant hits in this region)
+[*] code/rodata 2 (0x00300000..+2MB): 0x00300000..+0x200000  ...
+    read 2.0 MB in 13.6s (0.15 MB/s)
+    (no constant hits in this region)
+[*] data 1 (0x00500000..+3MB): 0x00500000..+0x300000  ...
+    read 3.0 MB in 20.3s (0.15 MB/s)
+    (no constant hits in this region)
+[*] data 2 (0x00800000..+3MB): 0x00800000..+0x300000  ...
+    read 3.0 MB in 20.4s (0.15 MB/s)
+    (no constant hits in this region)
+[*] data 3 (0x00B00000..+5MB): 0x00B00000..+0x500000  ...
+    read 5.0 MB in 33.9s (0.15 MB/s)
+    (no constant hits in this region)
+[*] heap 1 (0x01000000..+4MB): 0x01000000..+0x400000  ...
+    read 4.0 MB in 27.3s (0.15 MB/s)
+    (no constant hits in this region)
+[*] heap 2 (0x01400000..+4MB): 0x01400000..+0x400000  ...
+    read 4.0 MB in 27.2s (0.15 MB/s)
+    (no constant hits in this region)
+[*] heap 3 (0x01800000..+4MB): 0x01800000..+0x400000  ...
+    read 4.0 MB in 27.7s (0.14 MB/s)
+    (no constant hits in this region)
+[*] heap 4 (0x01C00000..+3MB): 0x01C00000..+0x300000  ...
+    read 3.0 MB in 20.5s (0.15 MB/s)
+    (no constant hits in this region)
+
+======================================================================
+Constant-in-memory hits: 0
+======================================================================
+
+======================================================================
+lui/ori-addiu instruction-pair hits: 0
+======================================================================

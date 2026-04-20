@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Large memory captures we don't want in git
+# (the small ones in archive/scenarios/ are kept; add exclusions if you
+#  add huge new captures during further reverse-engineering)
+*.bin
+*.dump
+
+# Temporary capture outputs if you re-run scenario_run at the repo root.
+# (archive/scenarios/ IS versioned — those captures document the discovery.)
+/scenarios/

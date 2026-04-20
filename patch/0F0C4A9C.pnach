@@ -1,0 +1,88 @@
+gametitle=Shadow of the Colossus (PAL, SCES-53326) [CRC 0F0C4A9C]
+comment=Disable free-roam camera pitch auto-focus; preserve manual pitch/yaw + bow/sword aim cameras
+//
+// How it works
+// ============
+// The camera-input routine reads the right-stick Y byte at 0x001ACD44
+// with `lbu v0, 0x107(s2)`. In free-roam mode, auto-focus is triggered
+// whenever that byte falls inside the game's "neutral" deadzone (roughly
+// [0x41, 0xBF] around center 0x80). This patch installs a trampoline that:
+//
+//   1. Checks a mode flag at 0x0106C9FC:
+//        1 = free-roam      (apply substitution to kill auto-focus)
+//        0 = bow / sword aim (bypass entirely -- aim cameras keep working)
+//
+//   2. In free-roam: if the real byte is in [0x41, 0xBF] (deadzone),
+//      substitutes v0 = 0xC0 (just outside the game's neutral detection,
+//      below the pitch-input scaling threshold). This defeats auto-focus
+//      without producing drift.
+//
+//   3. Real manual pitch input (v0 <= 0x40 or v0 >= 0xC0) passes through
+//      unchanged, preserving full pitch control.
+//
+// Yaw is unaffected (separate stick-X byte at offset 0x106).
+//
+// The trampoline lives in previously-unused zero-padding at 0x001A4984
+// (39 free words of inter-function alignment padding).
+//
+// Behavior
+// ========
+//   Free-roam:
+//     - hands off the stick    -> camera stays put (no drift, no snap)
+//     - pitch up/down hold     -> camera pitches smoothly
+//     - pitch up/down release  -> camera stays pitched (auto-focus suppressed)
+//     - yaw                    -> works normally
+//   Bow aim / Sword-to-colossus guide:
+//     - patch bypassed entirely via mode-flag check
+//     - aim camera follows left-stick input normally
+//   Climbing colossus, riding horse, cutscenes:
+//     - climbing colossus verified OK (same mode flag as free-roam)
+//     - horse / cutscenes untested but should behave like free-roam
+//
+// Assembly
+// ========
+// Hook site:
+//   0x001ACD44:  j 0x001A4984            ; hijack to trampoline
+//   0x001ACD48:  lbu v0, 0x107(s2)       ; delay slot: does the real pad read
+//                                          (original instruction moved here)
+//
+// Trampoline body at 0x001A4984 (11 instructions):
+//   lui   at, 0x0107                     ; at = 0x01070000
+//   lw    at, -0x3604(at)                ; at = mem[0x0106C9FC]  (mode flag)
+//   beq   at, zero, +6                   ; aim mode (flag==0) -> skip substitute
+//   nop                                  ; delay slot
+//   addiu at, v0, -0x41                  ; shift range: at = v0 - 0x41
+//   sltiu at, at, 0x7F                   ; at = (v0 in [0x41, 0xBF]) ? 1 : 0
+//   beq   at, zero, +2                   ; outside deadzone -> skip substitute
+//   nop                                  ; delay slot
+//   addiu v0, zero, 0xC0                 ; substitute v0 = 0xC0
+//   j     0x001ACD4C                     ; return past the original sb
+//   sb    v0, 0x57(s0)                   ; delay slot: store (real or substituted)
+//
+// Credits: reverse-engineered 2026-04 via PINE IPC live binary-search on
+//   byte threshold, trampoline synthesis into function-alignment padding,
+//   and mode-flag discovery via stable-state diff between free-roam and aim.
+
+// --- Hook (replaces lbu v0,0x107(s2) + sb v0,0x57(s0)) ------------------
+patch=1,EE,0001ACD44,word,08069261
+patch=1,EE,0001ACD48,word,92420107
+
+// --- Trampoline body at 0x001A4984 --------------------------------------
+patch=1,EE,001A4984,word,3C010107
+patch=1,EE,001A4988,word,8C21C9FC
+patch=1,EE,001A498C,word,10200006
+patch=1,EE,001A4990,word,00000000
+patch=1,EE,001A4994,word,2441FFBF
+patch=1,EE,001A4998,word,2C21007F
+patch=1,EE,001A499C,word,10200002
+patch=1,EE,001A49A0,word,00000000
+patch=1,EE,001A49A4,word,240200C0
+patch=1,EE,001A49A8,word,0806B353
+patch=1,EE,001A49AC,word,A2020057
+
+// ----- Optional: camera freeze (uncomment all three to enable) ----------
+// Locks the camera in place entirely (no pitch, no yaw, no auto-focus).
+// For debug / verification only.
+//   patch=1,EE,0011EAACC,word,00000000
+//   patch=1,EE,0011EAAD8,word,00000000
+//   patch=1,EE,0011EAAE4,word,00000000
