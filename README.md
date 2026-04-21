@@ -64,7 +64,9 @@ All three include the free-roam autofocus defeat. The v17 variants additionally 
 
 Both v17 variants have an occasional camera "teleport/flicker" visible during aim on **direction reversal** (e.g., snapping the stick from full right to full left). It's a one-frame step of ~1.5° rotation, documented in detail in `docs/HOW_IT_WORKS.md`. It's less pronounced in the right-stick variant (or that's my perception).
 
-If it bothers you fall back to `0F0C4A9C_camera_fix_v1_disable_freeroam_autofocus.pnach` (no FPS-aim features, vanilla aim)
+If it bothers you fall back to `0F0C4A9C_camera_fix_v1_disable_freeroam_autofocus.pnach` (no FPS-aim features, vanilla aim).
+
+I've also noticed when you first apply the patch, then start the game, the game looks stuck. A temporal fix is to start the game and once booted apply the patch.
 
 ---
 
