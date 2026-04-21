@@ -1,6 +1,33 @@
-# How the SotC Auto-Focus Patch Works
+# How the SotC Camera-Fix Patch Works
 
-A technical walkthrough of the `0F0C4A9C_disable_freeroam_autofocus.pnach` patch and the Shadow of the Colossus (PAL, SCES-53326) camera-input pipeline it targets. Written as documentation for anyone who wants to understand, modify, or port the patch.
+A technical walkthrough of the Shadow of the Colossus (PAL, SCES-53326) camera-input pipeline and how the shipped patch modifies it. The v1 walkthrough (sections 1–10 below) is the foundation — it covers the original autofocus defeat and is still accurate for the pad-read mechanics. Current shipped behavior is v15 + v14, summarized in §0 and cross-referenced to `AIM_PRESERVE_INVESTIGATION.md` for the iteration history.
+
+---
+
+## 0. What the current patch (`0F0C4A9C_camera_fix.pnach`) actually does
+
+Two hooks with two shared state flags. Per-state behavior matrix:
+
+| State | mode flag `0x0106C9FC` | aim flag `0x0106B484` | cinematic flag `0x0106C880` | Hook A (pad-read) | Hook B (aim matrix) |
+|---|---|---|---|---|---|
+| Free-roam | 1 | 0 | 1 | deadzone substitute (autofocus defeat) | skipped |
+| Swim | 0 | 0 | 1 | deadzone substitute | applied |
+| On colossus | 0 | 0 | 1 | deadzone substitute | applied |
+| Climbing | 0 | **2** | 1 | deadzone substitute | applied |
+| Bow aim | 0 | **1** | 1 | left-X → right-X scratch remap | applied |
+| Cinematic | 0 | 0 | **0** | deadzone substitute | **skipped (v14)** |
+
+**Hook A (Trampoline A at `0x001A4984`, 20 instructions)** — redirects the pad-byte decode. The remap path fires **only** when the aim flag equals exactly `1`. Every other value (0, 2, anything else) falls through to the deadzone substitute, so autofocus is defeated consistently across free-roam, swim, on-colossus, climbing, and any future non-aim state we haven't sampled.
+
+**Hook B (Trampoline B at `0x001A5248`, 11 instructions)** — overrides the aim-direction matrix yaw with the live camera-yaw register so the reticle tracks the camera view (FPS-style centered aim). The override is suppressed in free-roam (no aim camera to track) and also suppressed during cinematics (the cinematic flag gate added in v14), so scripted cutscene cameras aren't hijacked.
+
+**Flag semantics** (stable-state diffed via `tools/find_stable_flags.py` + `tools/diff_aim_vs_all.py` / `diff_cinematic.py`):
+
+- `0x0106C9FC` — free-roam indicator. `1` in free-roam, `0` otherwise.
+- `0x0106B484` — bow-aim indicator. `1` in bow-aim only; `0` in free-roam/swim/on-colossus; `2` while climbing. Gate uses strict `== 1`.
+- `0x0106C880` — gameplay indicator. `1` during gameplay (all states we've sampled), `0` during cinematic cutscenes.
+
+See `AIM_PRESERVE_INVESTIGATION.md` for how these flags were discovered, the iteration history (v1 → v15), and the failure modes that drove each refinement. The original v1 walkthrough below remains accurate for the pad-read mechanics and the MIPS trampoline technique.
 
 ---
 

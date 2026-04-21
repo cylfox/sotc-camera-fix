@@ -1,25 +1,30 @@
 gametitle=Shadow of the Colossus (PAL, SCES-53326) [CRC 0F0C4A9C]
-comment=Camera fixes: disable free-roam autofocus + FPS-style centered aim + swim fixes (right-stick camera + autofocus defeat)
+comment=Camera fixes: free-roam autofocus disable + FPS-style centered aim + remap gated to aim-only
 //
-// What this pnach does (v11)
+// What this pnach does (v15)
 // ==========================
 // Two coordinated hooks:
 //   1. Hook A (pad-read) at 0x001ACD44 -> Trampoline A at 0x001A4984.
 //      Behavior branches on two flags:
-//        0x0106C9FC  mode flag  (1 = free-roam, 0 = aim/swim/cutscene)
-//        0x0106AD90  swim flag  (1 = swimming, 0 otherwise)
+//        0x0106C9FC  mode flag  (1 = free-roam, 0 = everything else)
+//        0x0106B484  AIM flag   (1 only in bow-aim. 0 in free-roam,
+//                                swim, on-top-of-colossus. 2 while
+//                                climbing.) The remap fires ONLY when
+//                                this flag equals exactly 1.
+//                                Verified non-latching.
 //
 //      Free-roam (mode flag = 1):
 //        Right-stick-Y byte is rewritten to 0xC0 when in the neutral
 //        deadzone [0x41, 0xBF]. Defeats autofocus without drift.
 //
-//      Swim (mode flag = 0, swim flag = 1):
-//        Same autofocus defeat on right-Y (camera holds pitch when
-//        stick is released). Left-stick is NOT remapped here, so
-//        left-stick drives only Wander's swim direction and right
-//        stick drives the camera normally.
+//      Non-aim & non-free-roam (mode flag = 0, AIM flag != 1):
+//        Same deadzone substitute as free-roam -> autofocus defeated
+//        on release. Left-stick is NOT remapped, so right-stick
+//        drives the camera and left-stick drives only Wander's
+//        movement. Covers swim, on-top-of-colossus, climbing, and
+//        any other non-aim state where the mode flag is 0.
 //
-//      Aim (mode flag = 0, swim flag = 0):
+//      Aim (mode flag = 0, AIM flag = 1):
 //        Left-stick-X pad byte is copied into the right-stick-X scratch
 //        slot (s0+0x56). Downstream the camera-yaw register 0x0106DF00
 //        is driven by the left stick. Combined with Hook B, the aim
@@ -27,19 +32,34 @@ comment=Camera fixes: disable free-roam autofocus + FPS-style centered aim + swi
 //        yaw and aim pitch.
 //
 //   2. Hook B (aim matrix builder) at 0x01176AB4 -> Trampoline B at
-//      0x001A5248. When mode flag = 0, overrides the aim-direction
-//      matrix yaw ($f12) with the live camera yaw at 0x0106DF00, so
-//      the aim direction tracks the camera view (reticle centered).
+//      0x001A5248. When mode flag = 0 AND cinematic flag
+//      0x0106C880 != 0 (i.e. not playing a cutscene), overrides the
+//      aim-direction matrix yaw ($f12) with the live camera yaw at
+//      0x0106DF00, so the aim direction tracks the camera view
+//      (reticle centered). During cinematics the override is skipped
+//      so the scripted cutscene camera keeps its intended yaw.
 //
-// Trampoline A at 0x001A4984 (19 instructions)
-// --------------------------------------------
+// CAVEAT: the AIM flag at 0x0106B484 takes at least three observed
+// values — 0 (free-roam/swim/on-top-of-colossus), 1 (bow-aim), 2
+// (climbing). v15's strict `== 1` gate treats every non-1 value as
+// "not aim" so new states are covered by default as long as they
+// don't pick the literal value 1. If a future state does read 1
+// outside bow-aim, the v7 remap symptom ("left-X yaws camera,
+// right-X dead") will return there. In that case capture
+// stable_<state>.json with find_stable_flags.py and use
+// tools/diff_aim_vs_all.py to find a flag whose aim-only value
+// remains distinct across that new state too.
+//
+// Trampoline A at 0x001A4984 (20 instructions; v15 strict aim == 1 check)
+// -----------------------------------------------------------------------
 //   lui   at, 0x0107
 //   lw    at, -0x3604(at)         ; mode flag 0x0106C9FC
 //   bne   at, zero, DEADZONE      ; free-roam -> deadzone check
 //   nop
 //   lui   at, 0x0107
-//   lw    at, -0x5270(at)         ; swim flag 0x0106AD90
-//   bne   at, zero, DEADZONE      ; swim -> deadzone (skip remap)
+//   lw    at, -0x4B7C(at)         ; AIM flag 0x0106B484
+//   addiu at, at, -1              ; at = aim - 1
+//   bne   at, zero, DEADZONE      ; aim != 1 -> deadzone (skip remap)
 //   nop
 //   lbu   t0, 0x108(s2)           ; aim path: left-X byte
 //   sb    t0, 0x56(s0)            ; aim path: overwrite right-X scratch
@@ -55,15 +75,18 @@ comment=Camera fixes: disable free-roam autofocus + FPS-style centered aim + swi
 //   j     0x001ACD4C
 //   sb    v0, 0x57(s0)            ; [jump delay slot]
 //
-// Trampoline B at 0x001A5248 (8 instructions, unchanged since v7)
-// ---------------------------------------------------------------
+// Trampoline B at 0x001A5248 (11 instructions; v14 added cinematic bail)
+// ----------------------------------------------------------------------
 //   swc1  $f20, 0xb8($sp)         ; restore clobbered instruction
 //   lui   t0, 0x0107
-//   lw    at, -0x3604(t0)         ; mode flag
-//   bne   at, zero, +2            ; free-roam -> skip override
+//   lw    at, -0x3604(t0)         ; mode flag 0x0106C9FC
+//   bne   at, zero, RET(+5)       ; free-roam -> skip override
 //   nop
-//   lwc1  $f12, -0x2100(t0)       ; aim/swim: f12 = mem[0x0106DF00]
-//   j     0x01176ABC              ; return to jal 0x1B47F0
+//   lw    at, -0x3780(t0)         ; CINEMATIC flag 0x0106C880
+//   beq   at, zero, RET(+2)       ; cinematic -> skip override
+//   nop
+//   lwc1  $f12, -0x2100(t0)       ; f12 = mem[0x0106DF00] camera yaw
+//   j     0x01176ABC              ; RET
 //   nop
 
 // ==== Hook A: pad-read ==================================================
@@ -73,23 +96,24 @@ patch=1,EE,0001ACD48,word,92420107
 // ==== Trampoline A body at 0x001A4984 ===================================
 patch=1,EE,001A4984,word,3C010107
 patch=1,EE,001A4988,word,8C21C9FC
-patch=1,EE,001A498C,word,14200009
+patch=1,EE,001A498C,word,1420000A
 patch=1,EE,001A4990,word,00000000
 patch=1,EE,001A4994,word,3C010107
-patch=1,EE,001A4998,word,8C21AD90
-patch=1,EE,001A499C,word,14200005
-patch=1,EE,001A49A0,word,00000000
-patch=1,EE,001A49A4,word,92480108
-patch=1,EE,001A49A8,word,A2080056
-patch=1,EE,001A49AC,word,08069272
-patch=1,EE,001A49B0,word,00000000
-patch=1,EE,001A49B4,word,2441FFBF
-patch=1,EE,001A49B8,word,2C21007F
-patch=1,EE,001A49BC,word,10200002
-patch=1,EE,001A49C0,word,00000000
-patch=1,EE,001A49C4,word,240200C0
-patch=1,EE,001A49C8,word,0806B353
-patch=1,EE,001A49CC,word,A2020057
+patch=1,EE,001A4998,word,8C21B484
+patch=1,EE,001A499C,word,2421FFFF
+patch=1,EE,001A49A0,word,14200005
+patch=1,EE,001A49A4,word,00000000
+patch=1,EE,001A49A8,word,92480108
+patch=1,EE,001A49AC,word,A2080056
+patch=1,EE,001A49B0,word,08069273
+patch=1,EE,001A49B4,word,00000000
+patch=1,EE,001A49B8,word,2441FFBF
+patch=1,EE,001A49BC,word,2C21007F
+patch=1,EE,001A49C0,word,10200002
+patch=1,EE,001A49C4,word,00000000
+patch=1,EE,001A49C8,word,240200C0
+patch=1,EE,001A49CC,word,0806B353
+patch=1,EE,001A49D0,word,A2020057
 
 // ==== Hook B: matrix-builder prologue (aim-center) ======================
 patch=1,EE,01176AB4,word,08069492
@@ -98,8 +122,11 @@ patch=1,EE,01176AB4,word,08069492
 patch=1,EE,001A5248,word,E7B400B8
 patch=1,EE,001A524C,word,3C080107
 patch=1,EE,001A5250,word,8D01C9FC
-patch=1,EE,001A5254,word,14200002
+patch=1,EE,001A5254,word,14200005
 patch=1,EE,001A5258,word,00000000
-patch=1,EE,001A525C,word,C50CDF00
-patch=1,EE,001A5260,word,0845DAAF
+patch=1,EE,001A525C,word,8D01C880
+patch=1,EE,001A5260,word,10200002
 patch=1,EE,001A5264,word,00000000
+patch=1,EE,001A5268,word,C50CDF00
+patch=1,EE,001A526C,word,0845DAAF
+patch=1,EE,001A5270,word,00000000
