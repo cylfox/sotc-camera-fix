@@ -1,6 +1,6 @@
 # SotC Camera Fix
 
-**This is my love letter to TeamICO and this amazing game <3**
+> **This is my love letter to TeamICO and this amazing game ❤️**
 
 A PCSX2 pnach patch for **Shadow of the Colossus (PAL, SCES-53326, CRC `0F0C4A9C`)** that fixes several camera behaviors:
 
