@@ -38,7 +38,9 @@ NetherSX2 is based on a pre-2023 PCSX2 fork which may require the classic exact-
 
 ## Pick your variant
 
-Three pnach files ship in `patch/`. **Only one should be active in PCSX2's cheats folder at a time** — they share address ranges and will conflict if layered.
+Three camera-fix pnach files and one optional velocity-cap pnach ship in `patch/`. **Only one camera-fix variant should be active at a time** — they share address ranges and will conflict if layered. The velocity-cap pnach is **independent** and can be enabled alongside any camera-fix variant.
+
+### Camera-fix (pick ONE)
 
 | File                                                      | Pick it if you want                                                                                                                                                      |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -48,9 +50,15 @@ Three pnach files ship in `patch/`. **Only one should be active in PCSX2's cheat
 
 All three include the free-roam autofocus defeat. The v18 variants additionally include the swim / climbing / on-colossus fixes and the FPS-centered aim.
 
+### Velocity cap (optional, combine with any camera-fix)
+
+| File                                    | Pick it if you want                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0F0C4A9C_camera_velocity_cap_v1.pnach` | **Lower max camera speed + less acceleration feel.** Clamps the game's angular-velocity accumulators to ±2.0 rad/s instead of the vanilla ±5.236. Reduces the "camera builds up speed the longer you push" sensation and the compound-speed-up on repeated presses. Safe to enable alongside any camera-fix variant — addresses don't overlap. |
+
 > **v18 vs v17.** v17 worked when applied after boot but hung PCSX2 if cheats were enabled before launch. Bisection showed that the memory region v17 used for Trampoline B (`0x001A5248..0x001A5274`) is not inert padding during early boot — the PS2 kernel / ELF loader uses that region for transient boot data, and per-vsync pnach writes there corrupted it. v18 relocates Trampoline B into the larger, proven-safe `0x001A4984` padding region (right after Trampoline A). Functionally identical to v17; now safe to enable from a fresh PCSX2 launch. The old v17 pnaches are preserved under `patch/v17/` for reference.
 
-### Behavior summary (v18 variants)
+### Behavior summary (camera fix variants)
 
 | State                          | Vanilla                                                   | Patch (v18)                                                                                |
 | ------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -63,6 +71,19 @@ All three include the free-roam autofocus defeat. The v18 variants additionally 
 | Bow aim (sustained, v18-left)  | Left stick aims, camera follows                           | **Left stick drives both yaw and pitch of aim; reticle stays centered**                    |
 | Bow aim (sustained, v18-right) | Left stick aims, camera follows                           | **Right stick drives both yaw and pitch of aim; reticle stays centered, left stick inert** |
 | Cinematics                     | Work                                                      | Work — scripted cutscene cameras are not hijacked                                          |
+
+### Behavior summary (velocity cap)
+
+SotC accumulates angular velocity over time while the right stick is held — the camera gets faster the longer you push, and repeated presses in the same direction compound because decay between presses doesn't fully complete. The velocity-cap patch clamps the game's two velocity accumulators to a lower max without changing the game's ramp or decay rates.
+
+| Axis  | Vanilla max speed               | Capped (v1)                  | Effect                                                                                                         |
+| ----- | ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Yaw   | 5.236 rad/s (5π/3 ≈ **300°/s**) | 2.000 rad/s (**≈ 115°/s**)   | Camera stops "building up" past a comfortable max. Repeat-press compounding is capped at the same 2.0 ceiling. |
+| Pitch | 1.396 rad/s (≈ **80°/s**)       | Unchanged (cap is above max) | No visible change.                                                                                             |
+
+See **[`docs/HOW_IT_WORKS_VELOCITY_CAP.md`](docs/HOW_IT_WORKS_VELOCITY_CAP.md)** for the full walkthrough — addresses touched, trampoline assembly, word-by-word vanilla-vs-patched table, and RE notes.
+
+> If you want finer tuning than the fixed 2.0 cap (growth dampening, aggressive snap-on-release, per-axis independent caps), run `py tools\cap_camera_velocity.py` while playing. The live tool offers three presets (`v1`, `v2`, `v3`) and lets you dial `--cap`, `--growth`, and `--snap-below` in real time. See the tool's header for details.
 
 ---
 
@@ -81,9 +102,9 @@ Do this in **PCSX2: Settings → Controllers → your pad → Bindings**. You do
 
 ### Aim direction-reversal flicker (v18 variants)
 
-Both v18 variants have an occasional camera "teleport/flicker" visible during aim on **direction reversal** (e.g., snapping the stick from full right to full left). It's a one-frame step of ~1.5° rotation, documented in detail in `docs/HOW_IT_WORKS.md`. It's less pronounced in the right-stick variant (or that's my perception).
+Both v18 variants have an occasional camera "teleport/flicker" visible during aim on **direction reversal** (e.g., snapping the stick from full right to full left). It's a one-frame step of ~1.5° rotation, documented in detail in `docs/HOW_IT_WORKS_CAMERA_FIX.md`. It's less pronounced in the right-stick variant (or that's my perception).
 
-If it bothers you fall back to `0F0C4A9C_camera_fix_v1_disable_freeroam_autofocus.pnach` (no FPS-aim features, vanilla aim).
+If it bothers you fall back to `0F0C4A9C_camera_fix_v1_disable_freeroam_autofocus.pnach` (no FPS-aim features, vanilla aim) or use the **velocity cap patch**.
 
 ### L2's "reset camera behind Wander" is broken (all variants)
 
@@ -101,13 +122,16 @@ If you rely on L2's camera reset in vanilla, it won't work with this patch activ
 │   ├── 0F0C4A9C_camera_fix_v18_left_aim.pnach     ← default: left-stick aim (boot-safe)
 │   ├── 0F0C4A9C_camera_fix_v18_right_aim.pnach    ← alternative: right-stick aim (boot-safe)
 │   ├── 0F0C4A9C_camera_fix_v1_disable_freeroam_autofocus.pnach  ← minimal autofocus-only
+│   ├── 0F0C4A9C_camera_velocity_cap_v1.pnach      ← optional: caps camera yaw+pitch angular velocity at 2.0 rad/s
 │   ├── v17/                  ← archived v17 variants (pre-boot-safe layout)
 │   └── _bisect/              ← the four minimal test pnaches used to find the v18 fix
 ├── docs/
-│   └── HOW_IT_WORKS.md       ← technical walkthrough (read this for the full story)
+│   ├── HOW_IT_WORKS_CAMERA_FIX.md    ← camera-fix v18 walkthrough (autofocus + FPS-aim mechanics)
+│   └── HOW_IT_WORKS_VELOCITY_CAP.md  ← velocity-cap pnach walkthrough (independent from v18)
 ├── tools/                    ← Python scripts for PINE-based live patching & discovery
 │   ├── pine_client.py         — PINE IPC client (TCP 127.0.0.1:28011)
 │   ├── boot_trace.py          — timing trace: log memory changes during boot
+│   ├── cap_camera_velocity.py — live-tune velocity cap/growth/snap (experimental, beyond what the pnach does)
 │   ├── apply_combined_v17.py  — live-apply v17 Trampoline A (left-stick aim)
 │   ├── apply_combined_v17_rs.py — live-apply v17 Trampoline A (right-stick aim)
 │   ├── apply_aim_center_v16.py  — live-apply v17 Trampoline B (aim matrix override)
@@ -156,7 +180,9 @@ Two coordinated hooks, both in inter-function zero padding:
 
 > Prior versions (v17) used `0x001A5248` for Trampoline B. That region was later shown, by bisection, to be used by the PS2 kernel / game ELF loader for transient data during early boot — writing to it from `patch=1` directives caused a boot hang. v18 relocates Trampoline B into the same large padding region as Trampoline A, which is provably safe across the entire boot sequence.
 
-See `docs/HOW_IT_WORKS.md` for the full technical walkthrough — the camera-input pipeline, the MIPS assembly, how the state flags were discovered, and the design rationale.
+See `docs/HOW_IT_WORKS_CAMERA_FIX.md` for the full technical walkthrough — the camera-input pipeline, the MIPS assembly, how the state flags were discovered, and the design rationale.
+
+> **Velocity-cap pnach** is documented in its own walkthrough — it's a different patch into a different part of the game (the camera velocity-update function), with no overlap with v18's hook sites or trampoline region. See **[`docs/HOW_IT_WORKS_VELOCITY_CAP.md`](docs/HOW_IT_WORKS_VELOCITY_CAP.md)**.
 
 ---
 
@@ -171,7 +197,7 @@ The same technique should work for other SotC builds (NTSC-U `877F3436`, NTSC-J,
 - The camera yaw/pitch registers (adjacent to the yaw register typically; `snap_pitch.py` helps)
 - The aim-matrix builder function prologue (for Hook B)
 
-The `tools/` scripts are mostly build-agnostic — only the addresses in the apply scripts and the shipped pnach would need updating. See the "Porting to Other SotC Builds" section of `docs/HOW_IT_WORKS.md` for details.
+The `tools/` scripts are mostly build-agnostic — only the addresses in the apply scripts and the shipped pnach would need updating. See the "Porting to Other SotC Builds" section of `docs/HOW_IT_WORKS_CAMERA_FIX.md` for details.
 
 ---
 
@@ -179,7 +205,7 @@ The `tools/` scripts are mostly build-agnostic — only the addresses in the app
 
 Reverse-engineered by **[cylfox](https://github.com/cylfox)** in 2026-04 via PCSX2's built-in debugger and PINE IPC.
 
-Last updated: 2026-04-23 (v18: boot-safe Trampoline B relocation).
+Last updated: 2026-04-23 (v18 boot-safe + optional velocity-cap pnach).
 
 ---
 

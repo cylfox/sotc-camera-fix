@@ -1,0 +1,90 @@
+gametitle=Shadow of the Colossus (PAL, SCES-53326) [CRC 0F0C4A9C]
+comment=camera-velocity cap v1: clamps yaw and pitch angular-velocity accumulators to +/-2.0 rad/s. Independent from camera_fix v18; can be loaded alongside.
+//
+// Author:       cylfox (https://github.com/cylfox)
+// Last updated: 2026-04-23
+//
+// What this pnach does
+// ====================
+// SotC stores per-frame angular-velocity accumulators for the camera at:
+//   0x0106DEF8   yaw velocity    (magnitude + sign, radians/sec)
+//   0x0106DF04   pitch velocity  (magnitude + sign, radians/sec)
+//
+// Vanilla: these ramp up over ~0.87s while the stick is held and saturate
+// at ~5.236 rad/s (yaw) and ~1.4 rad/s (pitch). That causes:
+//   * camera "builds up speed" the longer the stick is pushed
+//   * repeated presses in the same direction feel compound-accelerated
+//     (residual velocity never fully decays between presses)
+//
+// This pnach caps |yaw_vel| and |pitch_vel| at 2.0 rad/s by hooking the
+// velocity-update function's final return and re-clamping both
+// accumulators on every update. Pitch's natural max is already 1.4 so the
+// 2.0 cap doesn't affect it in practice; yaw is the primary effect.
+//
+// Independent from camera_fix_v18
+// ===============================
+// Addresses used here do NOT overlap with v18:
+//   0x01359008       hook site (replaces jr $ra at end of velocity fn)
+//   0x0012EFCC..     trampoline body (24 words in code-alignment padding)
+// Both pnaches can be enabled simultaneously.
+//
+// Important: the velocity function returns its computed value in $f0,
+// which the CALLER reads (via `swc1 $f0, 88($s0)` etc.) after the jal
+// returns. So the trampoline MUST NOT clobber $f0. Our scratch is
+// $at/$t0/$f1/$f2/$f3 only.
+//
+// Trampoline assembly (at 0x0012EFCC):
+//   0x00 | 3C010107 | lui    $at, 0x0107
+//   0x04 | C423DEF8 | lwc1   $f3, -0x2108($at)   ; f3 = yaw_vel
+//   0x08 | 3C084000 | lui    $t0, 0x4000         ; t0 = 2.0 bits
+//   0x0C | 44880800 | mtc1   $t0, $f1            ; f1 = 2.0
+//   0x10 | 46000887 | neg.s  $f2, $f1            ; f2 = -2.0
+//   0x14 | 46030834 | c.olt.s $f1, $f3            ; is 2.0 < yaw_vel?
+//   0x18 | 45000002 | bc1f    +2                 ; if not, try neg side
+//   0x1C | 00000000 | nop
+//   0x20 | E421DEF8 | swc1   $f1, -0x2108($at)   ; yaw_vel = 2.0
+//   0x24 | 46021834 | c.olt.s $f3, $f2            ; is yaw_vel < -2.0?
+//   0x28 | 45000002 | bc1f    +2
+//   0x2C | 00000000 | nop
+//   0x30 | E422DEF8 | swc1   $f2, -0x2108($at)   ; yaw_vel = -2.0
+//   0x34 | C423DF04 | lwc1   $f3, -0x20FC($at)   ; f3 = pitch_vel
+//   0x38 | 46030834 | c.olt.s $f1, $f3
+//   0x3C | 45000002 | bc1f    +2
+//   0x40 | 00000000 | nop
+//   0x44 | E421DF04 | swc1   $f1, -0x20FC($at)   ; pitch_vel = 2.0
+//   0x48 | 46021834 | c.olt.s $f3, $f2
+//   0x4C | 45000002 | bc1f    +2
+//   0x50 | 00000000 | nop
+//   0x54 | E422DF04 | swc1   $f2, -0x20FC($at)   ; pitch_vel = -2.0
+//   0x58 | 03E00008 | jr     $ra                 ; return to caller
+//   0x5C | 00000000 | nop
+
+// ==== Hook: replace jr $ra at end of velocity-update function ===========
+patch=1,EE,01359008,word,0804BBF3
+// (delay slot at 0x0135900C = addiu $sp, $sp, +96 — unchanged)
+
+// ==== Trampoline body at 0x0012EFCC ====================================
+patch=1,EE,0012EFCC,word,3C010107
+patch=1,EE,0012EFD0,word,C423DEF8
+patch=1,EE,0012EFD4,word,3C084000
+patch=1,EE,0012EFD8,word,44880800
+patch=1,EE,0012EFDC,word,46000887
+patch=1,EE,0012EFE0,word,46030834
+patch=1,EE,0012EFE4,word,45000002
+patch=1,EE,0012EFE8,word,00000000
+patch=1,EE,0012EFEC,word,E421DEF8
+patch=1,EE,0012EFF0,word,46021834
+patch=1,EE,0012EFF4,word,45000002
+patch=1,EE,0012EFF8,word,00000000
+patch=1,EE,0012EFFC,word,E422DEF8
+patch=1,EE,0012F000,word,C423DF04
+patch=1,EE,0012F004,word,46030834
+patch=1,EE,0012F008,word,45000002
+patch=1,EE,0012F00C,word,00000000
+patch=1,EE,0012F010,word,E421DF04
+patch=1,EE,0012F014,word,46021834
+patch=1,EE,0012F018,word,45000002
+patch=1,EE,0012F01C,word,00000000
+patch=1,EE,0012F020,word,E422DF04
+patch=1,EE,0012F024,word,03E00008
+patch=1,EE,0012F028,word,00000000
