@@ -96,7 +96,7 @@ These patches are better experience by remapping some of the buttons, luckily So
 | Jump            | _unchanged_ | _unchanged_  |
 | Action          | ○ Circle    | **L1**       |
 | Control horse   | ✕ Cross     | **R1**       |
-| Attack / slash  | ▢ Square    | **L2**       |
+| Attack          | ▢ Square    | **L2**       |
 | Grab            | R1          | **R2**       |
 | View colossus   | L1          | **○ Circle** |
 | Next weapon     | _unchanged_ | _unchanged_  |
