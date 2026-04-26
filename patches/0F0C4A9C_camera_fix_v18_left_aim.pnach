@@ -1,30 +1,11 @@
 gametitle=Shadow of the Colossus (PAL, SCES-53326) [CRC 0F0C4A9C]
-comment=v18 LEFT-STICK AIM: autofocus disable + FPS-centered aim (unified yaw+pitch on left stick) + swim/climbing/on-colossus fixes + cinematic bail. BOOT-SAFE (patches apply from fresh launch).
+comment=LEFT-STICK AIM: autofocus disable + FPS-centered aim (unified yaw+pitch on left stick) + swim/climbing/on-colossus fixes + cinematic bail.
 //
 // Author:       cylfox (https://github.com/cylfox)
 // Last updated: 2026-04-23
 //
-// v18 vs v17: what's new
-// ======================
-// v17 had a boot-time hang when PCSX2 launched with cheats already enabled.
-// Bisection across four isolated-write tests identified the root cause:
-// the 0x001A5248..0x001A5274 region used by v17 for Trampoline B is NOT
-// free padding during early boot — the PS2 kernel / game ELF loader uses
-// that region for transient data during initialisation, and our per-vsync
-// writes corrupted it, causing a boot hang.
-//
-// Fix in v18: relocate Trampoline B into the larger, provably-free
-// 0x001A4984 padding region (39 words of inter-function alignment),
-// placed directly after Trampoline A (which for left-aim ends at
-// 0x001A49D4). Hook B's jump target updates to match. Trampoline B's
-// internal instructions are unchanged (its return `j 0x01176ABC` is
-// absolute, independent of where Tramp B itself lives).
-//
-// Functionally v18 is identical to v17; only the physical address of
-// Trampoline B has changed.
-//
-// What this pnach does (v18 — unified left-stick camera during aim)
-// =================================================================
+// What this pnach does — unified left-stick camera during aim
+// ===========================================================
 // Two coordinated hooks:
 //   1. Hook A (pad-read) at 0x001ACD44 -> Trampoline A at 0x001A4984.
 //      Behavior branches on two flags:
@@ -49,17 +30,16 @@ comment=v18 LEFT-STICK AIM: autofocus disable + FPS-centered aim (unified yaw+pi
 //        aim pitch.
 //
 //   2. Hook B (aim matrix builder) at 0x01176AB4 -> Trampoline B at
-//      0x001A49D8 [CHANGED in v18 — was 0x001A5248 in v17]. When mode
-//      flag = 0 AND cinematic flag 0x0106C880 != 0, overrides BOTH
-//      arguments passed to the aim matrix builder with live camera
-//      state:
+//      0x001A49D8. When mode flag = 0 AND cinematic flag 0x0106C880 != 0,
+//      overrides BOTH arguments passed to the aim matrix builder with
+//      live camera state:
 //        $f12 <- 0x0106DF00  (camera yaw register)
 //        $f13 <- 0x0106DF0C  (camera pitch register, adjacent to yaw)
 //      Effect: aim direction on entry inherits the camera's current
 //      yaw AND pitch.
 //
-// Trampoline A at 0x001A4984 (21 instructions; unchanged from v17)
-// ----------------------------------------------------------------
+// Trampoline A at 0x001A4984 (21 instructions)
+// ---------------------------------------------
 //   lui   at, 0x0107
 //   lw    at, -0x3604(at)         ; mode flag 0x0106C9FC
 //   bne   at, zero, DEADZONE      ; free-roam -> deadzone check
@@ -84,8 +64,8 @@ comment=v18 LEFT-STICK AIM: autofocus disable + FPS-centered aim (unified yaw+pi
 //   j     0x001ACD4C
 //   sb    v0, 0x57(s0)
 //
-// Trampoline B at 0x001A49D8 (12 instructions; MOVED in v18 from 0x001A5248)
-// --------------------------------------------------------------------------
+// Trampoline B at 0x001A49D8 (12 instructions)
+// ---------------------------------------------
 //   swc1  $f20, 0xb8($sp)         ; restore clobbered instruction
 //   lui   t0, 0x0107
 //   lw    at, -0x3604(t0)         ; mode flag 0x0106C9FC
@@ -103,7 +83,7 @@ comment=v18 LEFT-STICK AIM: autofocus disable + FPS-centered aim (unified yaw+pi
 patch=1,EE,0001ACD44,word,08069261
 patch=1,EE,0001ACD48,word,92420107
 
-// ==== Trampoline A body at 0x001A4984 (v17 layout unchanged, 21 words) ==
+// ==== Trampoline A body at 0x001A4984 (21 words) ========================
 patch=1,EE,001A4984,word,3C010107
 patch=1,EE,001A4988,word,8C21C9FC
 patch=1,EE,001A498C,word,1420000B
@@ -127,10 +107,9 @@ patch=1,EE,001A49D0,word,0806B353
 patch=1,EE,001A49D4,word,A2020057
 
 // ==== Hook B: matrix-builder prologue (aim-center) ======================
-// v18: target j 0x001A49D8 (was j 0x001A5248 in v17)
 patch=1,EE,01176AB4,word,08069276
 
-// ==== Trampoline B body at 0x001A49D8 (v18: MOVED from 0x001A5248) ======
+// ==== Trampoline B body at 0x001A49D8 ===================================
 patch=1,EE,001A49D8,word,E7B400B8
 patch=1,EE,001A49DC,word,3C080107
 patch=1,EE,001A49E0,word,8D01C9FC

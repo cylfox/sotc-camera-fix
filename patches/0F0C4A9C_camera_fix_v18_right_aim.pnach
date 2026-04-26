@@ -1,30 +1,8 @@
 gametitle=Shadow of the Colossus (PAL, SCES-53326) [CRC 0F0C4A9C]
-comment=v18 RIGHT-STICK AIM: autofocus disable + FPS-centered aim (yaw+pitch on right stick, left stick inert in aim) + swim/climbing/on-colossus fixes + cinematic bail. BOOT-SAFE (patches apply from fresh launch).
+comment=RIGHT-STICK AIM: autofocus disable + FPS-centered aim (yaw+pitch on right stick, left stick inert in aim) + swim/climbing/on-colossus fixes + cinematic bail.
 //
 // Author:       cylfox (https://github.com/cylfox)
 // Last updated: 2026-04-23
-//
-// v18 vs v17: what's new
-// ======================
-// v17 had a boot-time hang when PCSX2 launched with cheats already enabled
-// (workaround was apply-after-boot via Tools -> Reload Cheats/Patches).
-// Bisection across four isolated-write tests identified the root cause:
-// the 0x001A5248..0x001A5274 region used by v17 for Trampoline B is NOT
-// free padding during early boot — the PS2 kernel / game ELF loader uses
-// that region for transient data during initialisation, and our per-vsync
-// writes corrupted it, causing a boot hang.
-//
-// Fix in v18: relocate Trampoline B into the larger, provably-free
-// 0x001A4984 padding region (39 words of inter-function alignment),
-// placed directly after Trampoline A. Hook B's jump target updates to
-// match. Trampoline B's internal instructions are unchanged (its return
-// `j 0x01176ABC` is absolute, independent of where Tramp B itself lives).
-//
-// The 0x001A5248..0x001A5274 region is left untouched by v18, so there
-// is no interaction with the boot-time use of that memory.
-//
-// Functionally v18 is identical to v17; only the physical address of
-// Trampoline B has changed.
 //
 // What this pnach does
 // ====================
@@ -36,11 +14,10 @@ comment=v18 RIGHT-STICK AIM: autofocus disable + FPS-centered aim (yaw+pitch on 
 //      through the native camera pad-decode path.
 //
 //   2. Hook B (aim matrix builder) at 0x01176AB4 -> Trampoline B at
-//      0x001A49A0 [CHANGED in v18 — was 0x001A5248 in v17]. Overrides
-//      $f12/$f13 with the camera yaw/pitch registers
-//      (0x0106DF00 / 0x0106DF0C). Camera is driven by right stick ->
-//      $f12/$f13 inherit that -> aim reticle tracks camera. Cinematic
-//      bail via 0x0106C880.
+//      0x001A49A0. Overrides $f12/$f13 with the camera yaw/pitch
+//      registers (0x0106DF00 / 0x0106DF0C). Camera is driven by right
+//      stick -> $f12/$f13 inherit that -> aim reticle tracks camera.
+//      Cinematic bail via 0x0106C880.
 //
 // End-to-end during aim:
 //   right-stick X/Y -> pad-decode -> s0+0x56/0x57 (untouched)
@@ -49,8 +26,8 @@ comment=v18 RIGHT-STICK AIM: autofocus disable + FPS-centered aim (yaw+pitch on 
 //   left-stick      -> runs through native aim pipeline but its output
 //                      gets overridden by Hook B. Effectively inert.
 //
-// Trampoline A at 0x001A4984 (7 instructions; unchanged from v17)
-// ---------------------------------------------------------------
+// Trampoline A at 0x001A4984 (7 instructions)
+// --------------------------------------------
 //   addiu at, v0, -0x41            ; at = byte - 0x41
 //   sltiu at, at, 0x7F             ; in [0x41, 0xBF] deadzone?
 //   beq   at, zero, +2             ; outside -> RET (no substitute)
@@ -59,8 +36,8 @@ comment=v18 RIGHT-STICK AIM: autofocus disable + FPS-centered aim (yaw+pitch on 
 //   j     0x001ACD4C               ; RET
 //   sb    v0, 0x57(s0)             ; [delay slot]
 //
-// Trampoline B at 0x001A49A0 (12 instructions; MOVED in v18)
-// ----------------------------------------------------------
+// Trampoline B at 0x001A49A0 (12 instructions)
+// ---------------------------------------------
 //   swc1  $f20, 0xb8($sp)          ; restore clobbered
 //   lui   t0, 0x0107
 //   lw    at, -0x3604(t0)          ; mode flag
@@ -88,10 +65,9 @@ patch=1,EE,001A4998,word,0806B353
 patch=1,EE,001A499C,word,A2020057
 
 // ==== Hook B: matrix-builder prologue (aim-center) ======================
-// v18: target j 0x001A49A0 (was j 0x001A5248 in v17)
 patch=1,EE,01176AB4,word,08069268
 
-// ==== Trampoline B body at 0x001A49A0 (v18: MOVED from 0x001A5248) ======
+// ==== Trampoline B body at 0x001A49A0 ===================================
 patch=1,EE,001A49A0,word,E7B400B8
 patch=1,EE,001A49A4,word,3C080107
 patch=1,EE,001A49A8,word,8D01C9FC

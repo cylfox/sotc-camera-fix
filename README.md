@@ -71,8 +71,6 @@ All three include the free-roam autofocus defeat. The v18 variants additionally 
 
 > **Side-effect note:** removing the bars does not widen the cutscene camera FOV — the framing is still 4:3-source. You'll see the parts of the scene the bars were hiding (e.g., character heads/feet near frame edges), which is generally fine but can occasionally reveal geometry the cutscene was framing out.
 
-> **v18 vs v17.** v17 worked when applied after boot but hung PCSX2 if cheats were enabled before launch. Bisection showed that the memory region v17 used for Trampoline B (`0x001A5248..0x001A5274`) is not inert padding during early boot — the PS2 kernel / ELF loader uses that region for transient boot data, and per-vsync pnach writes there corrupted it. v18 relocates Trampoline B into the larger, proven-safe `0x001A4984` padding region (right after Trampoline A). Functionally identical to v17; now safe to enable from a fresh PCSX2 launch. The old v17 pnaches are preserved under `patch/v17/` for reference.
-
 ### Behavior summary (camera fix variants)
 
 | State                          | Vanilla                                                   | Patch (v18)                                                                                |
@@ -140,13 +138,11 @@ If you rely on L2's camera reset in vanilla, it won't work with this patch activ
 ```
 .
 ├── patch/
-│   ├── 0F0C4A9C_camera_fix_v18_left_aim.pnach     ← default: left-stick aim (boot-safe)
-│   ├── 0F0C4A9C_camera_fix_v18_right_aim.pnach    ← alternative: right-stick aim (boot-safe)
+│   ├── 0F0C4A9C_camera_fix_v18_left_aim.pnach     ← default: left-stick aim
+│   ├── 0F0C4A9C_camera_fix_v18_right_aim.pnach    ← alternative: right-stick aim
 │   ├── 0F0C4A9C_camera_fix_v1_disable_freeroam_autofocus.pnach  ← minimal autofocus-only
 │   ├── 0F0C4A9C_camera_velocity_cap_v1.pnach      ← optional: caps camera yaw+pitch angular velocity at 2.0 rad/s
-│   ├── 0F0C4A9C_no_letterbox.pnach                ← optional: disables cinematic letterbox bars
-│   ├── v17/                  ← archived v17 variants (pre-boot-safe layout)
-│   └── _bisect/              ← the four minimal test pnaches used to find the v18 fix
+│   └── 0F0C4A9C_no_letterbox.pnach                ← optional: disables cinematic letterbox bars
 ├── docs/
 │   ├── HOW_IT_WORKS_CAMERA_FIX.md    ← camera-fix v18 walkthrough (autofocus + FPS-aim mechanics)
 │   └── HOW_IT_WORKS_VELOCITY_CAP.md  ← velocity-cap pnach walkthrough (independent from v18)
@@ -200,8 +196,6 @@ Two coordinated hooks, both in inter-function zero padding:
 
 2. **Hook B** at `0x01176AB4` (aim matrix builder prologue) → Trampoline B at `0x001A49A0` for right-aim / `0x001A49D8` for left-aim (both inside the same `0x001A4984` padding region as Trampoline A). When `0x0106C9FC = 0` (non-free-roam) and `0x0106C880 ≠ 0` (not in a cinematic), overrides the aim-direction matrix inputs `$f12` (yaw) and `$f13` (pitch) with the live camera registers `0x0106DF00` / `0x0106DF0C`. Result: the aim direction tracks the camera view, reticle stays centered.
 
-> Prior versions (v17) used `0x001A5248` for Trampoline B. That region was later shown, by bisection, to be used by the PS2 kernel / game ELF loader for transient data during early boot — writing to it from `patch=1` directives caused a boot hang. v18 relocates Trampoline B into the same large padding region as Trampoline A, which is provably safe across the entire boot sequence.
-
 See `docs/HOW_IT_WORKS_CAMERA_FIX.md` for the full technical walkthrough — the camera-input pipeline, the MIPS assembly, how the state flags were discovered, and the design rationale.
 
 > **Velocity-cap pnach** is documented in its own walkthrough — it's a different patch into a different part of the game (the camera velocity-update function), with no overlap with v18's hook sites or trampoline region. See **[`docs/HOW_IT_WORKS_VELOCITY_CAP.md`](docs/HOW_IT_WORKS_VELOCITY_CAP.md)**.
@@ -227,7 +221,7 @@ The `tools/` scripts are mostly build-agnostic — only the addresses in the app
 
 Reverse-engineered by **[cylfox](https://github.com/cylfox)** in 2026-04 via PCSX2's built-in debugger and PINE IPC.
 
-Last updated: 2026-04-26 (v18 boot-safe + optional velocity-cap and no-letterbox pnaches).
+Last updated: 2026-04-26.
 
 ---
 
