@@ -1,0 +1,10 @@
+01060000 00010000 camera/state page
+01C18000 00008000 live camera controller
+01D00000 00010000 render state (speculative)
+01000000 00060000 low-mid game data
+010C0000 00040000 above camera state
+01400000 00080000 HUD/UI typical
+01700000 00080000 mid-RAM speculative
+01A00000 00080000 pre-camera-controller
+01D10000 00040000 post render-state
+01F00000 00080000 top of RAM

@@ -10,6 +10,11 @@ A PCSX2 pnach patch for **Shadow of the Colossus (PAL, SCES-53326, CRC `0F0C4A9C
 - Adds **FPS-style centered aim** (the aim reticle follows the camera view) with pitch inheritance on aim entry
 - Bails out of all overrides during **cinematics** so scripted cutscene cameras aren't hijacked
 
+Plus two optional independent pnach files:
+
+- **Velocity cap** — clamps angular camera velocity at a lower max for a less "build-up" feel
+- **No letterbox** — disables the cinematic black bars at the top/bottom of the screen during cutscenes (helpful in 16:9 where the bars compound the 4:3-source vertical crop)
+
 Implemented as two MIPS trampolines injected into inter-function alignment padding. No large-scale code rewrites, no runtime scripts, no emulator modifications.
 
 > **Tested configuration:** PAL SCES-53326 using **NTSC mode (60 Hz)** selected from the game's selector and **Spanish** as the in-game language. CRC `0F0C4A9C` is the same disc regardless of boot options, so the byte-level patches should apply to any PAL copy — but if you run into anything that behaves differently, this is the bench the patch was verified on.
@@ -38,7 +43,7 @@ NetherSX2 is based on a pre-2023 PCSX2 fork which may require the classic exact-
 
 ## Pick your variant
 
-Three camera-fix pnach files and one optional velocity-cap pnach ship in `patch/`. **Only one camera-fix variant should be active at a time** — they share address ranges and will conflict if layered. The velocity-cap pnach is **independent** and can be enabled alongside any camera-fix variant.
+Three camera-fix pnach files and two optional independent pnach files (velocity-cap, no-letterbox) ship in `patch/`. **Only one camera-fix variant should be active at a time** — they share address ranges and will conflict if layered. The optional pnaches are **independent** and can be enabled alongside any camera-fix variant.
 
 ### Camera-fix (pick ONE)
 
@@ -55,6 +60,16 @@ All three include the free-roam autofocus defeat. The v18 variants additionally 
 | File                                    | Pick it if you want                                                                                                                                                                                                                                                                                                                            |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `0F0C4A9C_camera_velocity_cap_v1.pnach` | **Lower max camera speed + less acceleration feel.** Clamps the game's angular-velocity accumulators to ±2.0 rad/s instead of the vanilla ±5.236. Reduces the "camera builds up speed the longer you push" sensation and the compound-speed-up on repeated presses. Safe to enable alongside any camera-fix variant — addresses don't overlap. |
+
+> **Set in-game camera sensitivity to its highest setting** when using the velocity cap. The cap clamps the *maximum* angular velocity; at lower in-game sensitivities the game's stick-to-velocity scale never reaches that ceiling, so the cap has no effect (and behavior across sensitivities feels inconsistent). Highest sensitivity gives the cap something to clamp against on every push, which is when it does what it's supposed to.
+
+### No letterbox (optional, combine with any camera-fix)
+
+| File                              | Pick it if you want                                                                                                                                                                                                                                                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0F0C4A9C_no_letterbox.pnach`     | **Disable the cinematic black bars** at the top and bottom of the screen during cutscenes. Useful in 16:9 where PCSX2 already crops vertically; the bars compound that crop and make the cutscene feel over-zoomed. Holding the bar-visibility flag at `0.0` per frame keeps cutscene playback otherwise intact (camera, audio, scripted action all proceed normally). Safe to enable alongside any camera-fix variant. |
+
+> **Side-effect note:** removing the bars does not widen the cutscene camera FOV — the framing is still 4:3-source. You'll see the parts of the scene the bars were hiding (e.g., character heads/feet near frame edges), which is generally fine but can occasionally reveal geometry the cutscene was framing out.
 
 > **v18 vs v17.** v17 worked when applied after boot but hung PCSX2 if cheats were enabled before launch. Bisection showed that the memory region v17 used for Trampoline B (`0x001A5248..0x001A5274`) is not inert padding during early boot — the PS2 kernel / ELF loader uses that region for transient boot data, and per-vsync pnach writes there corrupted it. v18 relocates Trampoline B into the larger, proven-safe `0x001A4984` padding region (right after Trampoline A). Functionally identical to v17; now safe to enable from a fresh PCSX2 launch. The old v17 pnaches are preserved under `patch/v17/` for reference.
 
@@ -81,7 +96,13 @@ SotC accumulates angular velocity over time while the right stick is held — th
 | Yaw   | 5.236 rad/s (5π/3 ≈ **300°/s**) | 2.000 rad/s (**≈ 115°/s**)   | Camera stops "building up" past a comfortable max. Repeat-press compounding is capped at the same 2.0 ceiling. |
 | Pitch | 1.396 rad/s (≈ **80°/s**)       | Unchanged (cap is above max) | No visible change.                                                                                             |
 
+> The cap is **only consistently effective at the in-game maximum camera sensitivity setting**. Lower sensitivities scale stick input down before the velocity accumulator integrates, so the accumulator never reaches the 2.0 rad/s ceiling and the cap has nothing to clamp. Use highest sensitivity (Options → Camera) for the patch to behave the same way every push.
+
 See **[`docs/HOW_IT_WORKS_VELOCITY_CAP.md`](docs/HOW_IT_WORKS_VELOCITY_CAP.md)** for the full walkthrough — addresses touched, trampoline assembly, word-by-word vanilla-vs-patched table, and RE notes.
+
+### Behavior summary (no letterbox)
+
+The cinematic system stores a "bars visible" float at `0x01477504`: `1.0` while bars should be drawn, `0.0` otherwise. The pnach pins it at `0.0` every frame, so the bars never show even when a cutscene tries to enable them. The variable lives in a HUD/UI struct cluster (`0x01477290..0x01477508`); other values in that struct (animated HUD overlays, prompts) are not touched.
 
 > If you want finer tuning than the fixed 2.0 cap (growth dampening, aggressive snap-on-release, per-axis independent caps), run `py tools\cap_camera_velocity.py` while playing. The live tool offers three presets (`v1`, `v2`, `v3`) and lets you dial `--cap`, `--growth`, and `--snap-below` in real time. See the tool's header for details.
 
@@ -123,6 +144,7 @@ If you rely on L2's camera reset in vanilla, it won't work with this patch activ
 │   ├── 0F0C4A9C_camera_fix_v18_right_aim.pnach    ← alternative: right-stick aim (boot-safe)
 │   ├── 0F0C4A9C_camera_fix_v1_disable_freeroam_autofocus.pnach  ← minimal autofocus-only
 │   ├── 0F0C4A9C_camera_velocity_cap_v1.pnach      ← optional: caps camera yaw+pitch angular velocity at 2.0 rad/s
+│   ├── 0F0C4A9C_no_letterbox.pnach                ← optional: disables cinematic letterbox bars
 │   ├── v17/                  ← archived v17 variants (pre-boot-safe layout)
 │   └── _bisect/              ← the four minimal test pnaches used to find the v18 fix
 ├── docs/
@@ -205,7 +227,7 @@ The `tools/` scripts are mostly build-agnostic — only the addresses in the app
 
 Reverse-engineered by **[cylfox](https://github.com/cylfox)** in 2026-04 via PCSX2's built-in debugger and PINE IPC.
 
-Last updated: 2026-04-23 (v18 boot-safe + optional velocity-cap pnach).
+Last updated: 2026-04-26 (v18 boot-safe + optional velocity-cap and no-letterbox pnaches).
 
 ---
 

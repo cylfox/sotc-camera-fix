@@ -1,0 +1,3 @@
+01060000 00010000 camera/state page
+01C18000 00008000 live camera controller
+01D00000 00010000 render state (speculative)
