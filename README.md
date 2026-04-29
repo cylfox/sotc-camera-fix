@@ -13,6 +13,14 @@ Pnach patches for PS2's **Shadow of the Colossus (PAL, SCES-53326, CRC `0F0C4A9C
 > [!NOTE]
 > **Tested configuration:** PAL SCES-53326 using **NTSC mode (60 Hz)** selected from the game's selector and **Spanish** as the in-game language. CRC `0F0C4A9C` is the same disc regardless of boot options, so the byte-level patches should apply to any PAL copy
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=oJOtBe_MaSA">
+    <img src="https://github.com/user-attachments/assets/72cfaad6-d9dc-43fe-a245-7b1b11a81b32" alt="Shadow of the Colossus gameplay">
+  </a>
+  <br>
+  <sub>Click to watch gameplay showcase — Intro and first colossus fight</sub>
+</p>
+
 ---
 
 ## Patches
